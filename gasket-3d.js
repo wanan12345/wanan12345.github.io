@@ -9,7 +9,7 @@ var canvas;
 var points = [];
 var colors = [];
 
-var numTimesToSubdivide = 3;
+var numTimesToSubdivide = 1;
 
 window.onload = function init() {
     canvas = document.getElementById("gl-canvas");
