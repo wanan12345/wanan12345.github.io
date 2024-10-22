@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body>
+  
+  <input type="color" id="colorPicker">
+  <button id="triangleButton">正三角形</button>
+  <button id="squareButton">正方形</button>
+  <button id="cubeButton">立方体</button>
+  <button id="circleButton">圆</button>
+  <input type="range" id="circleSidesSlider" min="3" max="100" value="30">
+  <button id="clearButton">清空场景</button>
+  <canvas id="canvas"></canvas>
+  <script>
+    // 获取 canvas 元素和绘图上下文
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // 设置 canvas 尺寸
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // 定义变量
+    let isDrawingTriangle = false;
+    let isDrawingSquare = false;
+    let isDrawingCube = false;
+    let isDrawingCircle = false;
+    let triangleScale = 1;
+    let squareRotation = 0;
+    let cubeRotation = 0;
+    let circleX = canvas.width / 2;
+    let circleY = canvas.height / 2;
+    let circleSides = 30;
+    let circleSpeed = 5; // 降低圆的移动速度
+
+    // 正三角形绘制函数
+    function drawTriangle(x, y) {
+      ctx.beginPath();
+      ctx.moveTo(x, y - triangleScale * 50);
+      ctx.lineTo(x - triangleScale * 40, y + triangleScale * 25);
+      ctx.lineTo(x + triangleScale * 40, y + triangleScale * 25);
+      ctx.closePath();
+      ctx.fillStyle = document.getElementById('colorPicker').value;
+      ctx.fill();
+    }
+
+    // 正方形绘制函数
+    function drawSquare(x, y) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(squareRotation * Math.PI / 180);
+      ctx.beginPath();
+      ctx.rect(-50, -50, 100, 100);
+      ctx.fillStyle = document.getElementById('colorPicker').value;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // 立方体绘制函数
+    function drawCube(x, y) {
+		ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(cubeRotation * Math.PI / 180);
+      ctx.beginPath();
+      ctx.fillStyle = document.getElementById('colorPicker').value;
+      ctx.strokeStyle = 'black';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-50, -50);
+      ctx.lineTo(50, -50);
+      ctx.lineTo(50, 50);
+      ctx.lineTo(-50, 50);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-50, -50);
+      ctx.lineTo(-50, -50 - 50);
+      ctx.lineTo(50, -50 - 50);
+      ctx.lineTo(50, -50);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(50, -50);
+      ctx.lineTo(50, -50 - 50);
+      ctx.lineTo(50, 50 - 50);
+      ctx.lineTo(50, 50);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-50, 50);
+      ctx.lineTo(-50, 50 - 50);
+      ctx.lineTo(50, 50 - 50);
+      ctx.lineTo(50, 50);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 圆绘制函数
+    function drawCircle(x, y) {
+      ctx.beginPath();
+      ctx.arc(x, y, 50, 0, Math.PI * 2);
+      ctx.fillStyle = document.getElementById('colorPicker').value;
+      ctx.fill();
+      ctx.strokeStyle = 'black';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // 清空场景函数
+    function clearCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // 鼠标点击事件处理函数
+    canvas.addEventListener('mousedown', function (event) {
+      const x = event.clientX - canvas.offsetLeft;
+      const y = event.clientY - canvas.offsetTop;
+      if (isDrawingTriangle) {
+        drawTriangle(x, y);
+      } else if (isDrawingSquare) {
+        drawSquare(x, y);
+      } else if (isDrawingCube) {
+        drawCube(x, y);
+      } else if (isDrawingCircle) {
+        drawCircle(x, y);
+      }
+    });
+
+    // 正三角形按钮点击事件处理函数
+    document.getElementById('triangleButton').addEventListener('click', function () {
+      isDrawingTriangle = true;
+      isDrawingSquare = false;
+      isDrawingCube = false;
+      isDrawingCircle = false;
+    });
+
+    // 正方形按钮点击事件处理函数
+    document.getElementById('squareButton').addEventListener('click', function () {
+      isDrawingTriangle = false;
+      isDrawingSquare = true;
+      isDrawingCube = false;
+      isDrawingCircle = false;
+    });
+
+    // 立方体按钮点击事件处理函数
+    document.getElementById('cubeButton').addEventListener('click', function () {
+      isDrawingTriangle = false;
+      isDrawingSquare = false;
+      isDrawingCube = true;
+      isDrawingCircle = false;
+    });
+
+    // 圆按钮点击事件处理函数
+    document.getElementById('circleButton').addEventListener('click', function () {
+      isDrawingTriangle = false;
+      isDrawingSquare = false;
+      isDrawingCube = false;
+      isDrawingCircle = true;
+    });
+
+    // 清空按钮点击事件处理函数
+    document.getElementById('clearButton').addEventListener('click', clearCanvas());
+
+    // 圆边数滑动条事件处理函数
+    document.getElementById('circleSidesSlider').addEventListener('input', function () {
+      circleSides = this.value;
+    });
+
+    // 动画循环函数
+    function animate() {
+      requestAnimationFrame(animate);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (isDrawingTriangle) {
+        triangleScale += 0.01;
+        if (triangleScale >= 2) {
+          triangleScale *= 0.5;
+        }
+        drawTriangle(canvas.width / 2, canvas.height / 2);
+      }
+      if (isDrawingSquare) {
+        squareRotation += 2;
+        drawSquare(canvas.width / 2, canvas.height / 2);
+      }
+      if (isDrawingCube) {
+        cubeRotation += 2;
+        drawCube(canvas.width / 2, canvas.height / 2);
+      }
+      if (isDrawingCircle) {
+        circleX += Math.random() * circleSpeed - circleSpeed / 2;
+        circleY += Math.random() * circleSpeed - circleSpeed / 2;
+        if (circleX < 0) circleX = canvas.width;
+        if (circleX > canvas.width) circleX = 0;
+        if (circleY < 0) circleY = canvas.height;
+        if (circleY > canvas.height) circleY = 0;
+        drawCircle(circleX, circleY);
+      }
+    }
+
+    animate();
+  </script>
+</body>
+
+</html>
