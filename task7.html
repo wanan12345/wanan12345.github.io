@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="Content-type" content="text/html;charset=utf-8">
+    <title>Chap7 Demo 2 Textured Sphere</title>
+    <script id="vertex-shader" type="x-shader/x-vertex">
+#version 300 es
+in vec4 vPosition;
+in vec4 vColor;
+in vec2 vTexCoord;
+
+out vec4 aColor;
+out vec2 aTexCoord;
+
+uniform vec3 theta;
+
+void main()
+{
+    vec3 angles = radians(theta);
+    vec3 c = cos(angles);
+    vec3 s = sin(angles);
+
+    mat4 rx = mat4(1.0, 0.0, 0.0, 0.0,
+                   0.0, c.x, s.x, 0.0,
+                   0.0, -s.x, c.x, 0.0,
+                   0.0, 0.0, 0.0, 1.0);
+    mat4 ry = mat4(c.y, 0.0, -s.y, 0.0,
+                   0.0, 1.0, 0.0, 0.0,
+                   s.y, 0.0, c.y, 0.0,
+                   0.0, 0.0, 0.0, 1.0);
+    mat4 rz = mat4(c.z, s.z, 0.0, 0.0,
+                   -s.z, c.z, 0.0, 0.0,
+                   0.0, 0.0, 1.0, 0.0,
+                   0.0, 0.0, 0.0, 1.0);
+
+    aColor = vColor;
+    aTexCoord = vTexCoord;
+    gl_Position = rz * ry * rx * vPosition;
+    gl_Position.z = -gl_Position.z;
+}
+    </script>
+
+    <script id="fragment-shader" type="x-shader/x-fragment">
+#version 300 es
+precision mediump float;
+
+in vec4 aColor;
+in vec2 aTexCoord;
+out vec4 fColor;
+
+uniform sampler2D u_texture;
+
+void main()
+{
+    fColor = texture(u_texture, aTexCoord);
+    //gl_FragColor = fColor * texture2D( texture, fTexCoord );
+
+}
+    </script>
+
+    <script type="text/javascript" src="common/webgl-utils.js"></script>
+    <script type="text/javascript" src="common/initShaders.js"></script>
+    <script type="text/javascript" src="common/gl-matrix-min.js"></script>
+</head>
+
+<body>
+    <h1>带纹理的球体</h1>
+    <canvas id="gl-canvas" width="600" height="600">
+        你的浏览器不支持HTML5 canvas元素
+    </canvas>
+
+    <button id="ButtonX">Rotate X</button>
+    <button id="ButtonY">Rotate Y</button>
+    <button id="ButtonZ">Rotate Z</button>
+</body>
+
+</html>
+<script>
+"use strict";
+
+const { vec2, vec3, vec4 } = glMatrix;
+
+var canvas;
+var gl;
+var program;
+
+var texSize = 4;
+
+
+var image1 = new Array();
+for (var i = 0; i < texSize; i++)
+    image1[i] = new Array();
+for (var i = 0; i < texSize; i++)
+    for (var j = 0; j < texSize; j++)
+        image1[i][j] = new Float32Array(4);
+
+for (var i = 0; i < texSize; i++) {
+    for (var j = 0; j < texSize; j++) {
+        // 根据纹理坐标的u方向（这里简单模拟，可根据实际需求调整）
+        var u = j / (texSize - 1); 
+        if (u < 0.5) {
+            image1[i][j] = [1.0, 0.0, 0.0, 1]; // 设置为红色
+        } else {
+            image1[i][j] = [0.0, 0.0, 1.0, 1]; // 设置为蓝色
+        }
+    }
+}
+var image2 = new Uint8Array(4 * texSize * texSize);
+for (var i = 0; i < texSize; i++)
+    for (var j = 0; j < texSize; j++)
+        for (var k = 0; k < 4; k++)
+            image2[4 * texSize * i + 4 * j + k] = 255 * image1[i][j][k];
+
+var points = [];
+var colors = [];
+var texCoords = [];
+
+var texture;
+
+var xAxis = 0;
+var yAxis = 1;
+var zAxis = 2;
+var axis = xAxis;
+var theta = [45.0, 45.0, 45.0];
+var thetaLoc;
+
+// 生成球体顶点数据的函数
+function makeSphere(radius, numSegments) {
+    let points = [];
+    let colors = [];
+    let texCoords = [];
+
+    for (let i = 0; i <= numSegments; i++) {
+        let phi = i * Math.PI / numSegments;
+        for (let j = 0; j <= numSegments; j++) {
+            let theta = j * 2 * Math.PI / numSegments;
+
+            // 计算顶点坐标
+            let x = radius * Math.sin(phi) * Math.cos(theta);
+            let y = radius * Math.sin(phi) * Math.sin(theta);
+            let z = radius * Math.cos(phi);
+            points.push(x, y, z, 1.0);
+
+            // 简单设置颜色（这里可以根据需求设置更复杂的颜色逻辑）
+            colors.push(0.6, 0.8, 1.0, 1.0);
+
+            // 计算纹理坐标（这里是一种简单的映射方式，可根据实际需求调整）
+            texCoords.push(theta / (2 * Math.PI), phi / Math.PI);
+        }
+    }
+
+    return { points, colors, texCoords };
+}
+
+function configureTexture(image) {
+    texture = gl.createTexture();
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, texSize, texSize, 0, gl.RGBA, gl.UNSIGNED_BYTE, image);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+}
+
+window.onload = function initSphere() {
+    canvas = document.getElementById("gl-canvas");
+
+    gl = canvas.getContext("webgl2");
+    if (!gl) {
+        alert("WebGL isn't available");
+    }
+
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(1.0, 1.0, 1.0, 1.0);
+
+    gl.enable(gl.DEPTH_TEST);
+
+    // 加载着色器并初始化属性缓冲区
+    program = initShaders(gl, "vertex-shader", "fragment-shader");
+    gl.useProgram(program);
+
+    // 生成球体数据并赋值给相应数组
+    let sphereData = makeSphere(0.5, 30);
+    points = sphereData.points;
+    colors = sphereData.colors;
+    texCoords = sphereData.texCoords;
+
+    var cBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+
+    var vColor = gl.getAttribLocation(program, "vColor");
+    gl.vertexAttribPointer(vColor, 4, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(vColor);
+
+    var vBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
+
+    var vPosition = gl.getAttribLocation(program, "vPosition");
+    gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(vPosition);
+
+    var tBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, tBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoords), gl.STATIC_DRAW);
+
+    var vTexCoord = gl.getAttribLocation(program, "vTexCoord");
+    gl.vertexAttribPointer(vTexCoord, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(vTexCoord);
+
+    configureTexture(image2);
+
+    thetaLoc = gl.getUniformLocation(program, "theta");
+    document.getElementById("ButtonX").onclick = function () {
+        axis = xAxis;
+    }
+
+    document.getElementById("ButtonY").onclick = function () {
+        axis = yAxis;
+    }
+
+    document.getElementById("ButtonZ").onclick = function () {
+        axis = zAxis;
+    }
+
+    render();
+}
+
+function render() {
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    theta[axis] += 2.0;
+    gl.uniform3fv(thetaLoc, theta);
+
+    gl.drawArrays(gl.TRIANGLES, 0, points.length / 4);
+
+    requestAnimFrame(render);
+}
+</script>
